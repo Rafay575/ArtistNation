@@ -1,0 +1,44 @@
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width:100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 199;
+  }
+  
+  .modal-main {
+    position:fixed;
+    background: white;
+    width: 75%;
+    height: auto;
+    top:50%;
+    left:50%;
+    transform: translate(-50%,-50%);
+  }
+    .modal-main.bg-none {
+    background:transparent !important
+  }
+  
+  .display-block {
+    display: block;
+  }
+  
+  .display-none {
+    display: none;
+  }
+  .modal-close {
+    position:absolute;
+    right:15px;
+    top:10px;
+    color:#dd80aa;
+    width:20px;
+    text-align: center;
+  }
+  .modal-close:hover {
+    opacity: .5;
+    border:1px solid #dd6098;
+    cursor: pointer;
+    border-radius: 5px;
+  }

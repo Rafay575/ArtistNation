@@ -1,0 +1,301 @@
+{
+  "navbar": {
+    "logo": "/favicon.png"
+},
+  "heroSlides": [
+    {
+      "bg": "/hero/1.png",
+      "bgAlt": "Artists performing on stage",
+      "headline": "Real Bars. Real Impact.",
+      "subtext": "Raw lyrics. Relentless flow. Authentic stories that move a generation.",
+      "cta": "Get Started"
+    },
+    {
+      "bg": "/hero/2.png",
+      "bgAlt": "Soulful Voice. Timeless Vibes.",
+      "headline": "Soulful Voice. Timeless Vibes.",
+      "subtext": "Melodies that touch the heart. Performances that leave a lasting impression.",
+      "cta": "Explore Events"
+    },
+    {
+      "bg": "/hero/3.png",
+      "bgAlt": "Arteast services dashboard",
+      "headline": "Born to Perform. Built to Inspire.",
+      "subtext": "High energy. Unmatched stage presence. Creating moments the world won't forget.",
+      "cta": "See Services"
+    }
+  ],
+  "about": {
+    "title": "About Us",
+    "heading": "Empowering Artists to Build Their Brand",
+    "description1": "Artist Nation is an all-in-one platform designed for artists, entertainers, performers, and record labels to build a professional online presence, promote music, sell merchandise, manage events, and engage fans from one centralized platform.",
+    "founderName": "Carl Marshall",
+    "founderTitle": "Founder & CEO – Carl Marshall",
+    "founderBio": "Carl Marshall is a technology executive, product strategist, and software engineer with more than 28 years of experience delivering innovative digital solutions across the public and private sectors. Artist Nation reflects his vision of providing creators with enterprise-quality tools that simplify technology and accelerate business growth.",
+    "image": "/1.png",
+    "ctaText": "Start Your Free 14-Day Trial",
+    "artistCards": [
+      { "src": "/s1.png", "name": "Your Stage", "subtitle": "12,500,000+ monthly listeners", "verified": true },
+      { "src": "/s2.png", "name": "Your Brand", "subtitle": "11,200,000+ monthly listeners", "verified": true },
+      { "src": "/s3.png", "name": "Your Future", "subtitle": "11,700,000+ monthly listeners", "verified": true },
+      { "src": "/s4.png", "name": "Your Fans", "subtitle": "10,400,000+ monthly listeners", "verified": true }
+    ]
+  },
+  "features": {
+    "tag": "Our Features",
+    "heading": "Everything Artists Need to Build Their Digital Empire",
+    "subtext": "Create, promote, sell, and connect with your fans through one powerful platform designed for today's independent artists and music brands.",
+    "items": [
+      {
+        "title": "Artist Website",
+        "description": "Create a professional website that showcases your brand, biography, music, videos, and latest news—all without writing a single line of code.",
+        "icon": "🎤"
+      },
+      {
+        "title": "Music Catalog",
+        "description": "Upload, organize, and promote your singles, albums, and playlists while giving fans one central location to discover your music.",
+        "icon": "🎵"
+      },
+      {
+        "title": "Merchandise Store",
+        "description": "Sell apparel, collectibles, accessories, and exclusive merchandise directly to your fans through your personalized online storefront.",
+        "icon": "🛍"
+      },
+      {
+        "title": "Photo Gallery",
+        "description": "Share professional photos, behind-the-scenes moments, performances, and promotional content in a beautifully organized gallery.",
+        "icon": "📸"
+      },
+      {
+        "title": "Tours & Events",
+        "description": "Promote concerts, appearances, listening parties, and tours while giving fans an easy way to stay informed about upcoming events.",
+        "icon": "🎫"
+      },
+      {
+        "title": "Social Media Integration",
+        "description": "Connect your favorite social platforms and keep your audience engaged by displaying your latest content in one centralized location.",
+        "icon": "🌐"
+      }
+    ]
+  },
+   "services": {
+    "title": "Sleek and User Friendly Dashboard",
+    "description": "Navigate effortlessly through your artist dashboard. Our sleek interface provides a user-friendly experience, allowing you to manage your content, engage with your audience, and track your progress with ease. Streamline your workflow and stay focused on what matters most—your music.",
+    "backgroundImage": "/bg-services.png",
+    "features": [
+      {
+        "title": "Streamlined Interface",
+        "description": "Navigate seamlessly with optimal user experience.",
+        "icon": "/icons/file.png"
+      },
+      {
+        "title": "Intuitive Controls",
+        "description": "Easily manage your content, engage with your audience, and track your progress.",
+        "icon": "/icons/controls.png"
+      },
+      {
+        "title": "Focus on Creativity",
+        "description": "Spend less time navigating and more time focusing on creating your music.",
+        "icon": "/icons/creativity-focus.png"
+      }
+    ]
+  },
+   "merchandise": {
+    "title": "Manage your Merchandise in one workspace",
+    "description": "Navigate effortlessly through your artist dashboard. Our sleek interface provides a user-friendly experience, allowing you to manage your content, engage with your audience, and track your progress with ease. Streamline your workflow and stay focused on what matters most—your music.",
+    "mainImage": "/merchandise.png",
+    "features": [
+      {
+        "title": "Unified Branding",
+        "description": "Maintain consistency by integrating merchandise offerings with your artist's image and message.",
+        "icon": "/icons/crown.png"
+      },
+      {
+        "title": "Enhanced Fan Engagement",
+        "description": "Offer exclusive merchandise to deepen connections with your audience and drive fan loyalty.",
+        "icon": "/icons/heart.png"
+      },
+      {
+        "title": "Additional Revenue Stream",
+        "description": "Expand your revenue opportunities by selling branded merchandise alongside your music offerings.",
+        "icon": "/icons/money.png"
+      }
+    ]
+  },
+   "events": {
+    "backgroundImage": "/bg-events.png",
+    "title": "Stay Tuned: Events & Tours Updates",
+    "description": "Stay in sync with the music world on your Artist Dashboard. From local gigs to global tours, never miss a beat. Manage your schedule, book venues, and connect with fans for unforgettable live experiences. Your next show is just a click away!",
+    "mainImage": "/events.png",
+    "bottomIconsImage": "/events-bottom-icons.png",
+    "features": [
+      {
+        "title": "Explore Events Worldwide",
+        "description": "Stay updated on concerts, festivals, and tours.",
+        "icon": "/icons/world-wide.png"
+      },
+      {
+        "title": "Exclusive Access",
+        "description": "Get early tickets and special offers for your favorite artists.",
+        "icon": "/icons/e-access.png"
+      },
+      {
+        "title": "Personalized Alerts",
+        "description": "Never miss a beat with custom notifications tailored to your music tastes.",
+        "icon": "/icons/bell.png"
+      }
+    ]
+  },
+  "pricing": {
+    "heading": "Simple Pricing for Music Creators",
+    "subtext": "Launch your artist brand, manage music catalogs, engage fans, and scale your label operations with one modern platform.",
+    "artistPlans": [
+      {
+        "name": "Starter Artist",
+        "description": "Perfect for emerging artists building their digital presence.",
+        "price": "$12",
+        "period": "/month",
+        "cta": "Start Free Trial",
+        "popular": false,
+        "popularLabel": "",
+        "features": [
+          "Custom Artist Website",
+          "Music Catalog Management",
+          "Photo Gallery",
+          "Tour Listings",
+          "Social Media Integrations",
+          "Basic Merchandise Store",
+          "Email Capture Forms"
+        ]
+      },
+      {
+        "name": "Artist Pro",
+        "description": "Built for growing artists monetizing music and expanding fan engagement.",
+        "price": "$39",
+        "period": "/month",
+        "cta": "Upgrade to Pro",
+        "popular": true,
+        "popularLabel": "POPULAR",
+        "features": [
+          "Unlimited Music Uploads",
+          "Premium Website Templates",
+          "Fan Mailing List",
+          "Analytics Dashboard",
+          "Streaming Integrations",
+          "Press Kit Builder",
+          "SEO Optimization Tools",
+          "Priority Support"
+        ]
+      },
+      {
+        "name": "Artist Elite",
+        "description": "Advanced tools for professional artists and management teams.",
+        "price": "$99",
+        "period": "/month",
+        "cta": "Go Elite",
+        "popular": false,
+        "popularLabel": "",
+        "features": [
+          "Fan Memberships",
+          "AI Marketing Insights",
+          "Revenue Analytics",
+          "Royalty Dashboard",
+          "Livestream Events",
+          "SMS Fan Engagement",
+          "VIP Content Access",
+          "Dedicated Account Manager"
+        ]
+      }
+    ],
+    "labelPlans": [
+      {
+        "name": "Indie Label",
+        "description": "Operational tools for boutique independent labels.",
+        "price": "$149",
+        "period": "/month",
+        "cta": "Start Managing Artists",
+        "popular": false,
+        "popularLabel": "",
+        "features": [
+          "Manage up to 5 Artists",
+          "Publishing Administration",
+          "Royalty Tracking",
+          "Release Management",
+          "Metadata Management",
+          "Financial Reporting"
+        ]
+      },
+      {
+        "name": "Label Pro",
+        "description": "Scalable infrastructure for growing music labels and A&R teams.",
+        "price": "$399",
+        "period": "/month",
+        "cta": "Scale Your Label",
+        "popular": true,
+        "popularLabel": "BEST VALUE",
+        "features": [
+          "A&R Pipeline Management",
+          "Demo Submission Portal",
+          "Rights Management",
+          "Sync Licensing Tracking",
+          "Role-Based Permissions",
+          "API Integrations",
+          "Advanced Royalty Accounting"
+        ]
+      },
+      {
+        "name": "Enterprise Suite",
+        "description": "Enterprise-grade platform for large labels and music groups.",
+        "price": "Custom",
+        "period": "",
+        "cta": "Contact Sales",
+        "popular": false,
+        "popularLabel": "",
+        "features": [
+          "Unlimited Artists",
+          "White-Label Platform",
+          "AI Talent Discovery",
+          "Streaming Intelligence",
+          "Custom Workflows",
+          "Enterprise Security",
+          "Dedicated Infrastructure"
+        ]
+      }
+    ]
+  },
+  "contact": {
+    "backgroundImage": "/assets/img/bg-yb.png",
+    "heading": "Get in touch",
+    "description": "Stop wasting time and money designing and managing a website that does not get results. Happiness guaranteed!"
+  },
+  "footer": {
+    "backgroundImage": "/bg-footer.png",
+    "brandName": "ArtistNation",
+    "tagline": "\"Amplifying Artists, Harmonizing Hearts!\"",
+    "socialIcons": [
+      { "src": "/icons/v.svg", "alt": "V" },
+      { "src": "/icons/insta.svg", "alt": "Instagram" },
+      { "src": "/icons/feed.svg", "alt": "Feed" },
+      { "src": "/icons/fb.svg", "alt": "Facebook" }
+    ],
+    "subscribePlaceholder": "Enter your email to subscribe",
+    "subscribeButtonText": "Subscribe",
+    "companyLinks": [
+      { "label": "Home", "to": "home" },
+      { "label": "About", "to": "about" },
+      { "label": "Features", "to": "features" },
+      { "label": "Pricing", "to": "pricing" },
+      { "label": "Contact Us", "to": "contact" }
+    ],
+    "helpLinks": [
+      { "label": "Privacy Policy", "to": "/privacy" },
+      { "label": "Terms & conditions", "to": "/term" },
+      { "label": "FAQ", "to": "/faqs" }
+    ],
+    "contactInfo": {
+      "address": "ArtistNation, 1418 Noxe Street, Suite 3845, California, USA",
+      "email": "hello@artistnation.studio"
+    },
+    "copyright": "All Rights Reserved artistnation.studio"
+  }
+}

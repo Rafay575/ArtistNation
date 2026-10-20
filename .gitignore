@@ -1,0 +1,78 @@
+# Dependencies (all three projects)
+node_modules/
+.pnp
+.pnp.*
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+
+# Generated builds, caches and deployment metadata
+.next/
+out/
+build/
+dist/
+.turbo/
+.cache/
+.vercel/
+.netlify/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs and test output (keep test source files)
+*.log
+logs/
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Database exports and backups (keep backend/migrations/*.sql)
+/artistnation_db.sql
+/backups/
+/database-dumps/
+*.dump
+*.sql.gz
+*.sql.zip
+*.bak
+
+# Uploaded customer files; keep the bundled default site assets
+/backend/uploads/*
+!/backend/uploads/default-*.png
+!/backend/uploads/default-music.mp3
+!/backend/uploads/logo.png
+!/backend/uploads/car[1-4].png
+!/backend/uploads/n[1-3].png
+!/backend/uploads/up-img.png
+
+# Generated email previews
+/backend/email-previews/
+
+# Temporary implementation scripts in the repository root
+/.*-edits.cjs
+/.fix.cjs
+/.normalize.cjs
+/.integration-fix.cjs
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.idea/
