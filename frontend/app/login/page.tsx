@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useLogin, useForgotPassword, useVerifyResetOTP, useResetPassword } from "@/hooks/useSignup";
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '@/store/authSlice';
-import { PENDING_VERIFICATION_KEY } from '@/lib/signupDraft';
+import { clearSignupAfterLogin } from '@/lib/signupDraft';
 type Step = "login" | "forgot" | "otp" | "reset";
 
 const EASE = [0.4, 0, 0.2, 1] as const;
@@ -90,6 +90,7 @@ const handleLogin = (e: React.FormEvent) => {
            router.push("/admin")
             return;
           }
+        clearSignupAfterLogin();
         dispatch(loginSuccess({ token,  user: {
     id: user.id,
     email: user.email,
@@ -104,8 +105,9 @@ const handleLogin = (e: React.FormEvent) => {
       },
       onError: (err: any) => {
         if (err.response?.data?.code === 'EMAIL_UNVERIFIED') {
-          try { localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify({ userId: err.response.data.userId, email })); } catch { /* Show the server error if storage is unavailable. */ }
-          router.replace('/signup');
+          clearSignupAfterLogin();
+          router.replace('/signup?verify=1');
+          return;
         }
         const msg = err.response?.data?.error || "Login failed. Please try again.";
         setError(msg);

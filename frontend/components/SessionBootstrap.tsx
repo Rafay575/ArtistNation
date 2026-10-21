@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { loginSuccess, logout } from '@/store/authSlice';
 import { api } from '@/lib/api';
+import { clearLegacySignupData } from '@/lib/signupDraft';
 
 export default function SessionBootstrap({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
@@ -13,6 +14,7 @@ export default function SessionBootstrap({ children }: { children: React.ReactNo
     let active = true;
     // Remove credentials left by the previous client-storage implementation.
     try { localStorage.removeItem('authToken'); localStorage.removeItem('user'); } catch { /* Storage is optional. */ }
+    try { clearLegacySignupData(localStorage); } catch { /* Storage is optional. */ }
     document.cookie = 'authToken=; Max-Age=0; Path=/; SameSite=Lax';
     api.get('/api/session').then(response => {
       if (active) dispatch(loginSuccess({ user: response.data.user }));

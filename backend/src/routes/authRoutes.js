@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const authMiddleware = require('../middleware/auth');
+const { requireVerification, readVerificationToken } = require('../utils/signupVerification');
+const { findUserById } = require('../models/user');
 const validate = require('../middleware/authValidation');
 const rateLimit = require('../middleware/authRateLimit');
 const { revokeSession } = require('../utils/userSessions');
@@ -32,14 +34,25 @@ router.post('/reset-password', otpLimit, validate('reset'), resetPassword);
 
 // Signup
 router.post('/signup', emailLimit, signup);
-router.post('/verify-otp', otpLimit, validate('signupOTP'), verifyOTPFunc);
-router.post('/resend-otp', emailLimit, validate('resend'), resendOTP);
+router.post('/verify-otp', otpLimit, validate('signupOTP'), requireVerification, verifyOTPFunc);
+router.post('/resend-otp', emailLimit, validate('resend'), requireVerification, resendOTP);
 
 // ---------- Protected routes (require authentication) ----------
 router.get('/onboarding/draft', authMiddleware, getOnboardingDraft);
 router.post('/onboarding/draft', authMiddleware, saveOnboardingDraft);
 router.post('/onboarding/complete', authMiddleware, completeOnboarding);
 
+router.get('/verification', async (req, res, next) => {
+  let context;
+  try { context = readVerificationToken(req.headers['x-verification-token']); }
+  catch { return res.status(401).json({ error: 'Verification expired. Please sign in again.' }); }
+  try {
+    const user = await findUserById(context.id);
+    if (!user || user.is_verified || user.email.toLowerCase() !== context.email.toLowerCase()) return res.status(401).json({ error: 'Please sign in again to continue.' });
+    res.set('Cache-Control', 'no-store');
+    res.json({ userId: user.id, email: user.email });
+  } catch (error) { next(error); }
+});
 router.get('/session', authMiddleware, async (req, res, next) => {
   try {
     res.set('Cache-Control', 'no-store');

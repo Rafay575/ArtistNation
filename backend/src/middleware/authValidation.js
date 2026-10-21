@@ -5,8 +5,8 @@ const schemas = {
   login: Joi.object({ email, password, portal: Joi.string().valid('artist', 'admin').default('artist') }),
   email: Joi.object({ email }),
   resetOTP: Joi.object({ email, otp: Joi.string().pattern(/^\d{6}$/).required() }),
-  signupOTP: Joi.object({ userId: Joi.number().integer().positive().required(), otp: Joi.string().pattern(/^\d{6}$/).required() }),
-  resend: Joi.object({ userId: Joi.number().integer().positive().required() }),
+  signupOTP: Joi.object({ verificationToken: Joi.string().max(2048).required(), userId: Joi.number().integer().positive().required(), otp: Joi.string().pattern(/^\d{6}$/).required() }),
+  resend: Joi.object({ verificationToken: Joi.string().max(2048).required(), userId: Joi.number().integer().positive().required() }),
   reset: Joi.object({ resetToken: Joi.string().max(2048).required(), newPassword: password }),
 };
 module.exports = name => (req, res, next) => {

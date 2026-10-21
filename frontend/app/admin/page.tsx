@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLogin } from "@/hooks/useSignup";
 import { useDispatch } from "react-redux";
 import { loginSuccess } from "@/store/authSlice";
+import { clearSignupAfterLogin } from "@/lib/signupDraft";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function AdminLogin() {
           }
 
           // Store auth state
+          clearSignupAfterLogin();
           dispatch(loginSuccess({ token, user }));
           window.location.replace(user.redirectUrl); // should be "/admin/dashboard"
         },

@@ -37,6 +37,7 @@ export interface SignupPayload {
 }
 
 export interface SignupResponse {
+  email: string;
   message: string;
   userId: number;
   businessId: number;

@@ -1,6 +1,10 @@
-export const SIGNUP_DRAFT_KEY = 'artistnation-signup-draft-v1';
-export const PENDING_VERIFICATION_KEY = 'artistnation-pending-verification-v1';
+export const SIGNUP_DRAFT_KEY = 'artistnation-signup-draft-v2';
+const legacyKeys = ['artistnation-signup-draft-v1', 'artistnation-pending-verification-v1'];
 const fields = ['fullName', 'email', 'phone', 'businessName', 'subdomain', 'plan', 'billingCycle', 'billingAddress'] as const;
+
+export function clearLegacySignupData(storage: Pick<Storage, 'removeItem'>) {
+  try { for (const key of legacyKeys) storage.removeItem(key); } catch { /* Storage is optional. */ }
+}
 
 export function readSignupDraft(storage: Pick<Storage, 'getItem'>): Record<string, string> {
   try {
@@ -14,9 +18,15 @@ export function saveSignupDraft(storage: Pick<Storage, 'setItem'>, data: Record<
   storage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(Object.fromEntries(fields.map(key => [key, typeof data[key] === 'string' ? data[key] : '']))));
 }
 
-export function readPendingVerification(storage: Pick<Storage, 'getItem'>): { userId: number; email: string } | null {
+export function clearSignupDraft(storage: Pick<Storage, 'removeItem'>) {
+  try { storage.removeItem(SIGNUP_DRAFT_KEY); clearLegacySignupData(storage); } catch { /* Storage is optional. */ }
+}
+
+export function clearSignupAfterLogin() {
+  try { clearSignupDraft(localStorage); } catch { /* Storage is optional. */ }
   try {
-    const value = JSON.parse(storage.getItem(PENDING_VERIFICATION_KEY) || 'null');
-    return Number.isInteger(value?.userId) && value.userId > 0 && typeof value.email === 'string' ? value : null;
-  } catch { return null; }
+    const channel = new BroadcastChannel('artistnation-account');
+    channel.postMessage('signed-in');
+    channel.close();
+  } catch { /* Server verification binding also prevents cross-tab account mix-ups. */ }
 }

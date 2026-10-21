@@ -10,7 +10,24 @@ import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { useRouter } from "next/navigation";
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '@/store/authSlice'; 
-import { readSignupDraft, saveSignupDraft, readPendingVerification, SIGNUP_DRAFT_KEY, PENDING_VERIFICATION_KEY } from '@/lib/signupDraft';
+import { readSignupDraft, saveSignupDraft, clearLegacySignupData, clearSignupDraft, clearSignupAfterLogin } from '@/lib/signupDraft';
+import { api } from '@/lib/api';
+const initialSignupForm = {
+    fullName: "",
+    // countryCode is now fixed, we keep it in state for display but won't be editable
+    countryCode: "+1 US",
+    phone: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    businessName: "",
+    subdomain: "",
+    plan: "",
+    billingCycle: "",
+    billingAddress: "",
+    // card fields removed – now handled by Stripe
+  };
+
 export default function SignUpPage() {
   const features = [
     {
@@ -61,35 +78,55 @@ export default function SignUpPage() {
   const elements = useElements();
   const [stripeError, setStripeError] = useState<string | null>(null);
 const dispatch = useDispatch();
-  const [formData, setFormData] = useState({
-    fullName: "",
-    // countryCode is now fixed, we keep it in state for display but won't be editable
-    countryCode: "+1 US",
-    phone: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    businessName: "",
-    subdomain: "",
-    plan: "",
-    billingCycle: "",
-    billingAddress: "",
-    // card fields removed – now handled by Stripe
-  });
+  const [formData, setFormData] = useState(initialSignupForm);
+  const [verificationEmail, setVerificationEmail] = useState("");
 
   const [draftReady, setDraftReady] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState(false);
   const submittingRef = useRef(false);
-  const verifiedRef = useRef(false);
+  const accountGenerationRef = useRef(0);
+  const draftDisabledRef = useRef(false);
+  const completedRef = useRef(false);
+  const resetSignup = () => {
+    accountGenerationRef.current++;
+    draftDisabledRef.current = false;
+    completedRef.current = false;
+    setFormData({ ...initialSignupForm });
+    setUserId(null); setVerificationEmail(''); setOtp(''); setOtpError('');
+    setOtpSuccess(false); setResendMessage(''); setFieldErrors({}); setStep(1);
+  };
   useEffect(() => {
-    const saved = readSignupDraft(localStorage);
-    const pending = readPendingVerification(localStorage);
-    setFormData(prev => ({ ...prev, ...saved, ...(pending ? { email: pending.email } : {}) }));
-    if (pending) { setUserId(pending.userId); setStep(3); }
-    setDraftReady(true);
-  }, []);
+    let active = true;
+    try { clearLegacySignupData(localStorage); } catch { /* Storage is optional. */ }
+    if (new URLSearchParams(window.location.search).get('verify') === '1') {
+      draftDisabledRef.current = true;
+      api.get('/api/verification').then(response => {
+        if (!active) return;
+        setUserId(response.data.userId);
+        setVerificationEmail(response.data.email);
+        setStep(3); setDraftReady(true);
+      }).catch(() => { if (active) router.replace('/login'); });
+    } else {
+      let saved = {};
+      try { saved = readSignupDraft(localStorage); } catch { /* Storage is optional. */ }
+      setFormData(prev => ({ ...prev, ...saved }));
+      setDraftReady(true);
+    }
+    let channel: BroadcastChannel | undefined;
+    try {
+      channel = new BroadcastChannel('artistnation-account');
+      channel.onmessage = event => {
+        if (event.data === 'signed-in' && !completedRef.current) {
+          resetSignup();
+          setErrorMessage('The signed-in account changed. Start a fresh signup to use another email.');
+          window.history.replaceState(null, '', '/signup');
+        }
+      };
+    } catch { /* Verification is also bound to its server-side context. */ }
+    return () => { active = false; channel?.close(); };
+  }, [router]);
   useEffect(() => {
-    if (!draftReady || verifiedRef.current) return;
+    if (!draftReady || draftDisabledRef.current) return;
     try { saveSignupDraft(localStorage, formData); }
     catch { setErrorMessage('Your browser could not save this draft. Keep this page open to avoid losing it.'); }
   }, [formData, draftReady]);
@@ -332,6 +369,7 @@ const dispatch = useDispatch();
       if (submittingRef.current) return;
       submittingRef.current = true;
       setCreatingPayment(true);
+      const accountGeneration = accountGenerationRef.current;
       try {
       // Create PaymentMethod
       const { error, paymentMethod } = await stripe.createPaymentMethod({
@@ -364,8 +402,12 @@ const dispatch = useDispatch();
 
       await signupMutation.mutateAsync(payload, {
         onSuccess: (data) => {
+          if (accountGenerationRef.current !== accountGeneration) return;
           setUserId(data.userId);
-          try { localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify({ userId: data.userId, email: formData.email })); } catch { /* Verification still works in this tab. */ }
+          draftDisabledRef.current = true;
+          setVerificationEmail(data.email);
+          try { clearSignupDraft(localStorage); } catch { /* Storage is optional. */ }
+          setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
           goToStep(3);
         },
         onError: (error: any) => {
@@ -399,8 +441,9 @@ const dispatch = useDispatch();
   {
     onSuccess: (data) => {
       // data now contains { token, user, message }
-      verifiedRef.current = true;
-      try { localStorage.removeItem(SIGNUP_DRAFT_KEY); localStorage.removeItem(PENDING_VERIFICATION_KEY); } catch { /* Optional browser persistence. */ }
+      draftDisabledRef.current = true;
+      completedRef.current = true;
+      clearSignupAfterLogin();
       setOtpSuccess(true);
 
       // 1. Store the token (same as login flow)
@@ -897,8 +940,16 @@ const dispatch = useDispatch();
                         </h2>
                         <p className="text-gray-500 text-sm">
                           We sent a 6-digit OTP to{" "}
-                          <strong>{formData.email}</strong>
+                          <strong>{verificationEmail}</strong>
                         </p>
+                        <button type="button" disabled={verifyOTPMutation.isPending || resendOTPMutation.isPending} className="text-sm text-purple-600 hover:underline" onClick={async () => {
+                          try {
+                            await api.delete('/api/verification');
+                            try { clearSignupDraft(localStorage); } catch { /* Storage is optional. */ }
+                            resetSignup();
+                            window.history.replaceState(null, '', '/signup');
+                          } catch { setOtpError('Could not switch accounts. Please try again.'); }
+                        }}>Use a different account</button>
                         <div className="max-w-[200px] mx-auto">
                           <input
                             type="text"

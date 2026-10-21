@@ -1,3 +1,4 @@
+const { issueVerificationToken } = require('../utils/signupVerification');
 const { issueUserToken } = require('../utils/userSessions');
 const { signupSchema, validateProfile, siteUrl } = require('../utils/onboardingValidation');
 // src/controllers/authController.js
@@ -71,7 +72,7 @@ async function login(req, res, next) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    if (!user.is_verified) return res.status(403).json({ error: "Please verify your email first.", code: "EMAIL_UNVERIFIED", userId: user.id });
+    if (!user.is_verified) return res.status(403).json({ error: "Please verify your email first.", code: "EMAIL_UNVERIFIED", userId: user.id, email: user.email, verificationToken: issueVerificationToken(user.id, user.email) });
     const admin = user.is_admin === 1;
     if ((req.body.portal === 'admin') !== admin) return res.status(403).json({ error: admin ? 'Please use the administrator login.' : 'Administrator access required.' });
     const token = await issueUserToken(user);
@@ -343,6 +344,8 @@ async function signup(req, res, next) {
         message: "Payment successful! Please verify your OTP.",
         userId,
         businessId,
+        email,
+        verificationToken: issueVerificationToken(userId, email),
       });
     } catch (dbErr) {
       await connection.rollback();
