@@ -1,3 +1,8 @@
 const Stripe = require('stripe');
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY_1);
+// Billing, Connect, and webhook handlers must use the same platform account.
+const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+if (!secretKey) {
+  throw new Error('STRIPE_SECRET_KEY is required');
+}
+const stripe = new Stripe(secretKey);
 module.exports = stripe;

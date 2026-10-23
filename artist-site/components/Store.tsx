@@ -22,7 +22,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"; // if you have shadcn dialog; else use a simple modal
 
-export default function StoreSection({ content }: { content: any }) {
+export default function StoreSection({ content, sectionId }: { content: any; sectionId: string | number }) {
   const { settings } = useArtist();
   const { addItem } = useCart();
   const { isLoggedIn } = useFanAuth();
@@ -31,8 +31,9 @@ export default function StoreSection({ content }: { content: any }) {
   const {
     heading = "Store",
     description = "Music is the way to express your emotions...",
-    products = [],
+    products: rawProducts = [],
   } = content;
+  const products = rawProducts.map((product: any, index: number) => ({ ...product, checkoutId: `${sectionId}:${index}` }));
 
   const [selectedProduct, setSelectedProduct] = useState<any>(null); // for modal
 
@@ -43,7 +44,7 @@ export default function StoreSection({ content }: { content: any }) {
       return;
     }
     addItem({
-      id: product.name || product.title || `product-${Date.now()}`,
+      id: product.checkoutId,
       title: product.name || product.title,
       price: parseFloat(product.price) || 0,
       image: product.image || "/placeholder.png",

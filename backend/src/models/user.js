@@ -224,20 +224,15 @@ async function completeOnboarding(userId, profileData) {
     ],
   );
     await connection.query('UPDATE businesses SET is_onboarded = true WHERE user_id = ?', [userId]);
-    if (picture) {
-      await connection.query('UPDATE website_settings SET site_name = ?, logo_url = ?, logo_url_light = ?, logo_url_dark = ? WHERE user_id = ?', [artistName, picture.url, picture.url, picture.url, userId]);
-    } else {
-      await connection.query('UPDATE website_settings SET site_name = ? WHERE user_id = ?', [artistName, userId]);
-    }
+    // Profile photos belong to the user profile; preserve the site's own artwork.
+    await connection.query('UPDATE website_settings SET site_name = ? WHERE user_id = ?', [artistName, userId]);
     const [sections] = await connection.query("SELECT s.id, s.type, s.content FROM website_sections s JOIN website_pages p ON p.id = s.page_id WHERE p.user_id = ? AND p.slug = 'home' AND s.type IN ('hero', 'about')", [userId]);
     for (const section of sections) {
       const content = typeof section.content === 'string' ? JSON.parse(section.content) : section.content;
       if (section.type === 'hero') {
         content.heading = artistName; content.subheading = bio;
-        if (picture) content.image = picture.url;
       } else {
         content.title = 'About ' + artistName; content.paragraphs = [bio];
-        if (picture) content.images = [picture.url];
       }
       await connection.query('UPDATE website_sections SET content = ? WHERE id = ?', [JSON.stringify(content), section.id]);
     }

@@ -6,7 +6,7 @@ import { api as axios } from "@/lib/api";
 import {
   CheckCircle2,
   ExternalLink,
-  Link2Off,
+
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,12 +78,12 @@ export default function StripeIntegrationPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-800">Stripe Integration</h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Connect your Stripe account to receive store payments directly.
+              Connect a Standard Stripe account to receive store payments. Stripe processing fees apply.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium text-gray-500">
             <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-500" : "bg-amber-500"}`} />
-            {connected ? "Active" : "Test mode"}
+            {connected ? "Ready for payments" : "Setup required"}
           </div>
         </motion.div>
 
@@ -113,7 +113,9 @@ export default function StripeIntegrationPage() {
                 <p className="text-xs text-gray-500 mt-0.5">Account ID: {accountId}</p>
               ) : (
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {statusData?.status === "pending"
+                  {statusData?.status === "migration_required"
+                    ? "Your existing connection needs migration to Standard. Contact support."
+                    : statusData?.status === "pending"
                     ? "Complete your onboarding to start receiving payments."
                     : "Connect an account so this client can start receiving payouts."}
                 </p>
@@ -125,7 +127,7 @@ export default function StripeIntegrationPage() {
             {connected ? (
               <>
                 <a
-                  href={`https://dashboard.stripe.com/${accountId}`}
+                  href="https://dashboard.stripe.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
@@ -133,20 +135,12 @@ export default function StripeIntegrationPage() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   View in Stripe
                 </a>
-                <button
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-50 transition"
-                  onClick={() =>
-                    toast.error("Disconnect is not implemented yet in dashboard")
-                  }
-                >
-                  <Link2Off className="w-3.5 h-3.5" />
-                  Disconnect
-                </button>
+
               </>
             ) : (
               <Button
                 onClick={() => connectMutation.mutate()}
-                disabled={connectMutation.isPending}
+                disabled={connectMutation.isPending || statusData?.status === "migration_required"}
                 className="bg-[#635BFF] hover:bg-[#544ce0] text-white"
               >
                 {connectMutation.isPending ? (
@@ -155,7 +149,7 @@ export default function StripeIntegrationPage() {
                     Redirecting...
                   </>
                 ) : (
-                  "Connect with Stripe"
+                  "Set up Standard Stripe"
                 )}
               </Button>
             )}

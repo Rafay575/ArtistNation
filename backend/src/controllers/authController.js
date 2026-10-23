@@ -6,7 +6,7 @@ const bcrypt = require("bcrypt");
 const { randomBytes } = require("crypto");
 const dummyPasswordHash = bcrypt.hash(randomBytes(32).toString("hex"), 10);
 const jwt = require("jsonwebtoken");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("../config/stripe");
 const pool = require("../config/db");
 const { createSubscription } = require("../models/subscription");
 // ---------- User model ----------

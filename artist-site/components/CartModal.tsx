@@ -7,18 +7,10 @@ import { useCart } from "@/contexts/CartContext";
 import { useFanAuth } from "@/hooks/useFanAuth";
 import toast from "react-hot-toast";
 import { HiOutlineCreditCard, HiSearch, HiCheck } from "react-icons/hi";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // ---------- Searchable Select Component ----------
 function SearchableSelect({
@@ -140,62 +132,39 @@ function CheckoutForm({
   checkoutForm: any;
   setCheckoutForm: (form: any) => void;
   pickupLocations: { id: number; name: string; address?: string }[];
-  items: { id: string; title: string; price: number; quantity: number }[];
+  items: { id: string; title: string; price: number; quantity: number; image?: string }[];
 }) {
-  const stripe = useStripe();
-  const elements = useElements();
+  const checkoutAttempt = useRef<{ fingerprint: string; requestId: string } | null>(null);
   const [processing, setProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
-
+    if (processing) return;
     setProcessing(true);
     try {
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) throw new Error("Card element not found");
-
-      const { paymentMethod, error } = await stripe.createPaymentMethod({
-        type: "card",
-        card: cardElement,
-        billing_details: {
-          name: `${checkoutForm.firstName} ${checkoutForm.lastName}`,
-          email: checkoutForm.email,
-          phone: checkoutForm.phone,
-          address: {
-            line1: checkoutForm.street,
-            city: checkoutForm.city,
-            postal_code: checkoutForm.postalCode,
-          },
-        },
-      });
-
-      if (error) {
-        toast.error(error.message || "Payment failed");
-        setProcessing(false);
-        return;
+      const payload = { items: items.map(i => ({ id: i.id, quantity: i.quantity, title: i.title, image: i.image || '/placeholder.png' })), fanInfo: checkoutForm };
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify({ subdomain, payload })));
+      const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+      if (checkoutAttempt.current?.fingerprint !== fingerprint) {
+        // Only an opaque retry ID and content hash are persisted, never credentials or form fields.
+        let previous: { fingerprint: string; requestId: string } | null = null;
+        try { previous = JSON.parse(sessionStorage.getItem('artistnation-checkout') || 'null'); } catch {}
+        checkoutAttempt.current = previous?.fingerprint === fingerprint ? previous : { fingerprint, requestId: crypto.randomUUID() };
+        sessionStorage.setItem('artistnation-checkout', JSON.stringify(checkoutAttempt.current));
       }
-
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/${subdomain}/checkout`,
-        {
-          paymentMethodId: paymentMethod.id,
-          total: totalPrice,
-          fanInfo: {
-            firstName: checkoutForm.firstName,
-            lastName: checkoutForm.lastName,
-            email: checkoutForm.email,
-            phone: checkoutForm.phone,
-            pickupLocation: checkoutForm.pickupLocation,
-            items: items.map(i => ({ title: i.title, price: i.price, quantity: i.quantity })), // ← send items
-          },
-        },
-        { headers: { Authorization: `Bearer ${fanToken}` } }
+      const { data } = await axios.post(
+        process.env.NEXT_PUBLIC_API_URL + '/api/stripe/' + subdomain + '/checkout',
+        { ...payload, requestId: checkoutAttempt.current.requestId },
+        { headers: { Authorization: 'Bearer ' + fanToken } }
       );
-
-      toast.success("Payment successful!");
-      onSuccess();
+      const url = new URL(data.url);
+      if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('Invalid checkout URL');
+      window.location.assign(url.href);
     } catch (err: any) {
+      if (err.response?.data?.code === 'CHECKOUT_EXPIRED') {
+        checkoutAttempt.current = null;
+        sessionStorage.removeItem('artistnation-checkout');
+      }
       toast.error(err.response?.data?.error || err.message || "Payment failed");
     } finally {
       setProcessing(false);
@@ -302,33 +271,15 @@ function CheckoutForm({
         />
       </div>
 
-      {/* Card Details */}
-      <div className="border-t pt-4">
-        <h3 className="font-medium mb-3 flex items-center gap-2">
-          <HiOutlineCreditCard className="w-5 h-5" />
-          Card Details
-        </h3>
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#424770",
-                "::placeholder": { color: "#aab7c4" },
-              },
-              invalid: { color: "#9e2146" },
-            },
-          }}
-        />
-      </div>
+      <p className="text-sm text-gray-500">Continue to Stripe to securely enter your payment details and confirm the final total.</p>
 
       <button
         type="submit"
-        disabled={!stripe || processing}
+        disabled={processing}
         className="w-full py-3 rounded-xl text-white font-semibold transition hover:opacity-90 mt-2 disabled:opacity-50"
         style={{ backgroundColor: primaryColor }}
       >
-        {processing ? "Processing..." : `Pay $${totalPrice.toFixed(2)}`}
+        {processing ? "Processing..." : `Continue to payment (${totalPrice.toFixed(2)})`}
       </button>
     </form>
   );
@@ -366,6 +317,28 @@ export default function CartModal({
       setSubdomain(window.location.hostname.split(".")[0]);
     }
   }, []);
+
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get('checkout_session');
+    if (!sessionId || !fanToken || !subdomain) return;
+    let cancelled = false;
+    axios.post(process.env.NEXT_PUBLIC_API_URL + '/api/stripe/' + subdomain + '/checkout/' + encodeURIComponent(sessionId) + '/confirm', {}, {
+      headers: { Authorization: 'Bearer ' + fanToken },
+    }).then(({ data }) => {
+      if (cancelled) return;
+      if (data.paid) {
+        clearCart();
+        sessionStorage.removeItem('artistnation-checkout');
+        toast.success('Payment confirmed. Your order has been placed.');
+        const url = new URL(window.location.href);
+        url.searchParams.delete('checkout_session');
+        window.history.replaceState(null, '', url.href);
+      } else toast('Payment is not confirmed yet. Check your orders before paying again.');
+    }).catch(() => { if (!cancelled) toast.error('Could not confirm payment. Check your orders before paying again.'); });
+    return () => { cancelled = true; };
+    // Cart updates must not restart payment confirmation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fanToken, subdomain]);
 
   // Fetch real pickup locations
   const { data: pickupLocations = [] } = useQuery({
@@ -516,7 +489,7 @@ export default function CartModal({
                       </div>
                     </div>
                   ) : (
-                    <Elements stripe={stripePromise}>
+                    <>
                       <CheckoutForm
                         totalPrice={totalPrice}
                         primaryColor={primaryColor}
@@ -531,7 +504,7 @@ export default function CartModal({
                         pickupLocations={pickupLocations}
                         items={items}
                       />
-                    </Elements>
+                    </>
                   )}
                 </div>
               </motion.div>

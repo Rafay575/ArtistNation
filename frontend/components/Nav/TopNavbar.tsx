@@ -22,6 +22,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ selectedPlan }) => {
 
   const user = useAppSelector((state) => state.auth.user);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const showAccountMenu = isAuthenticated && !!user?.isOnboarded;
 
   // navbar/footer are always present on WebsiteConfig (never null), but
   // config itself is undefined until the query resolves, so guard both.
@@ -96,7 +97,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ selectedPlan }) => {
 
           {/* Auth buttons (desktop) */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {isAuthenticated && user ? (
+            {showAccountMenu ? (
               <div className="relative group">
                 <button className="w-9 h-9 rounded-full bg-white text-[#483E79] font-bold text-sm flex items-center justify-center hover:bg-gray-100 transition-colors cursor-pointer">
                   {initial}
@@ -168,7 +169,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ selectedPlan }) => {
 
           {/* RIGHT – avatar (mobile) */}
           <div className="flex items-center justify-end">
-            {isAuthenticated && user ? (
+            {showAccountMenu ? (
               <div className="relative">
                 <button
                   onClick={() => setMobileDropdownOpen(!mobileDropdownOpen)}
@@ -222,7 +223,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ selectedPlan }) => {
               </li>
             ))}
             <li className="py-4 flex gap-3">
-              {isAuthenticated && user ? (
+              {showAccountMenu ? (
                 <button
                   onClick={() => { closeMenu(); router.push("/admin/dashboard"); }}
                   className="flex-1 py-[10px] rounded-[8px] text-[0.9rem] font-semibold text-[#483E79] bg-white cursor-pointer hover:bg-white/90 shadow-sm transition-colors duration-200"

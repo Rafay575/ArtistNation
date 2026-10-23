@@ -85,7 +85,7 @@ export function SectionRenderer({ sections }: { sections: any[] }) {
           case "store":
             return (
               <Wrapper key={section.id}>
-                <StoreSection content={parsedContent} />
+                <StoreSection content={parsedContent} sectionId={section.id} />
               </Wrapper>
             );
           case "contact":
