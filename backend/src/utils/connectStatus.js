@@ -19,7 +19,8 @@ function connectStatus(account) {
     requirements: due,
     pendingVerification,
     action: status === 'migration_required' ? 'support'
-      : status === 'pending' && !account.details_submitted ? 'onboard' : 'dashboard',
+      : !connected && status !== 'under_review' && !requirements.disabled_reason?.startsWith('rejected.')
+        && (!account.details_submitted || due.length > 0) ? 'onboard' : 'dashboard',
   };
 }
 module.exports = { connectStatus };

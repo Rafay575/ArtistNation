@@ -118,7 +118,9 @@ export default function StripeIntegrationPage() {
                 {statusLoading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                {statusLoading ? 'Retrieving your account status.' : display?.description || 'Set up Stripe to receive payments from your artist site.'}
+                {statusLoading ? 'Retrieving your account status.' : statusData?.action === 'onboard'
+                  ? 'Complete the outstanding information through secure Stripe onboarding for your existing account.'
+                  : display?.description || 'Set up Stripe to receive payments from your artist site.'}
               </p>
               {accountId && <p className="text-xs text-gray-500 mt-1">Account ID: {accountId}</p>}
               {accountId && (

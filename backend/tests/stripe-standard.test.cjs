@@ -21,7 +21,9 @@ test('review, missing details, restrictions and enabled accounts have distinct s
  assert.equal(review.databaseStatus,'pending');
  assert.equal(review.action,'dashboard');
  const restricted = connectStatus({...account,requirements:{disabled_reason:'requirements.past_due',past_due:['individual.id_number']}});
- assert.equal(restricted.status,'restricted');assert.equal(restricted.action,'dashboard');
+ assert.equal(restricted.status,'restricted');assert.equal(restricted.action,'onboard');
+ assert.equal(connectStatus({...account,requirements:{disabled_reason:'requirements.past_due',currently_due:['tos_acceptance.date'],past_due:['individual.ssn_last_4']},details_submitted:false}).action,'onboard');
+ assert.equal(connectStatus({...account,requirements:{disabled_reason:'rejected.fraud',currently_due:['individual.id_number']}}).action,'dashboard');
  assert.equal(connectStatus({...account,details_submitted:false,requirements:{currently_due:['individual.id_number']}}).action,'onboard');
  assert.equal(connectStatus({...account,charges_enabled:true,payouts_enabled:true}).status,'active');
  assert.equal(connectStatus({...account,charges_enabled:true}).connected,false);
