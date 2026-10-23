@@ -1,141 +1,26 @@
-// components/SubscriptionBanner.tsx
 "use client";
-
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, RefreshCw } from "lucide-react";
-import { api } from "@/lib/api";
-
-interface SubscriptionStatus {
-  is_pending_cancel: boolean;
-  expires_at: string | null;
-}
-
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, Clock3, ArrowRight } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useAppSelector } from '@/store/hooks';
 export default function SubscriptionBanner() {
-  const [status, setStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(true);
-  const [isReactivating, setIsReactivating] = useState(false);
-
-  const fetchStatus = async () => {
-    try {
-      const response = await api.get("/api/billing/overview");
-      const data = response.data.data;
-      setStatus({
-        is_pending_cancel: data.subscription.is_pending_cancel,
-        expires_at: data.subscription.expires_at,
-      });
-    } catch (error) {
-      console.error("Error fetching subscription status:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "the end of your billing period";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const getDaysRemaining = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    const days = Math.ceil(
-      (new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
-    return days > 0 ? days : 0;
-  };
-
-  const handleReactivate = async () => {
-    setIsReactivating(true);
-    try {
-      const response = await api.post("/api/billing/reactivate");
-      if (response.data.success) {
-        setIsVisible(false);
-        await fetchStatus(); // Refresh status
-        // Show success toast or notification
-      }
-    } catch (error) {
-      console.error("Reactivate error:", error);
-      alert("Failed to reactivate. Please try again.");
-    } finally {
-      setIsReactivating(false);
-    }
-  };
-
-  // Don't show if not pending cancel or dismissed
-  if (loading || !status || !status.is_pending_cancel || !isVisible) {
-    return null;
-  }
-
-  const daysRemaining = getDaysRemaining(status.expires_at);
-  const dateFormatted = formatDate(status.expires_at);
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.3 }}
-        className="w-full bg-amber-50 border-b border-amber-200 px-4 py-3"
-      >
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          {/* Left: Icon + Message */}
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">
-                ⚠️ Your subscription has been canceled
-              </p>
-              <p className="text-sm text-amber-700">
-                Your site will be deactivated on{" "}
-                <span className="font-bold">{dateFormatted}</span>
-                {daysRemaining !== null && (
-                  <span className="text-xs text-amber-600 ml-2">
-                    ({daysRemaining} days remaining)
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleReactivate}
-              disabled={isReactivating}
-              className="inline-flex items-center px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm font-medium rounded-md transition-colors"
-            >
-              {isReactivating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                  Reactivating...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  Reactivate
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => setIsVisible(false)}
-              className="text-amber-400 hover:text-amber-600 transition-colors p-1"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
+ const user=useAppSelector(state=>state.auth.user);
+ const {data,isError}=useQuery({queryKey:['billingStatus',user?.id],enabled:!!user&&!user.isAdmin,queryFn:async()=> (await api.get('/api/billing/status')).data,refetchInterval:60000,refetchOnWindowFocus:true});
+ if(!user||user.isAdmin||(!data&&!isError)) return null;
+ const format=(date?:string)=>date?new Date(date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'your billing date';
+ const expired=data&&data.state!=='active';
+ const canceled=!!data?.cancel_at_period_end||data?.status==='pending_cancel';
+ const paymentIssue=['past_due','unpaid'].includes(data?.stripe_status);
+ const trial=data?.status==='trialing';
+ const warning=expired||canceled||paymentIssue||isError;
+ const title=isError?'Billing status needs checking':expired?'Your website is paused':canceled?'Automatic renewal is canceled':paymentIssue?'Your payment needs attention':trial?'Your ArtistNation trial is active':'Your subscription is active';
+ const message=isError?'Open billing to refresh your subscription status.':expired?`Renew before ${format(data.graceEnd)} to keep your website data and subdomain.`:canceled?`Access continues through ${format(data.paidThrough)}. Restore renewal in billing to keep your site online.`:paymentIssue?`Update your payment details. Your confirmed access continues through ${format(data.paidThrough)}.`:trial?`Your trial ends ${format(data.paidThrough)}. Your selected plan will then renew automatically.`:`Paid through ${format(data.paidThrough)}.`;
+ const Icon=warning?AlertTriangle:trial?Clock3:CheckCircle2;
+ return <div role="status" className={`sticky top-0 z-30 w-full border-b px-4 py-3 sm:px-6 ${warning?'border-amber-200 bg-amber-50 text-amber-950':'border-emerald-200 bg-emerald-50 text-emerald-950'}`}>
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   <div className="flex min-w-0 items-start gap-3"><Icon className="mt-0.5 h-5 w-5 shrink-0"/><div><p className="text-sm font-semibold">{title}</p><p className="mt-0.5 text-xs leading-relaxed sm:text-sm">{message}</p></div></div>
+   <Link href="/admin/billings" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-current/20 bg-white/70 px-3 py-2 text-xs font-semibold hover:bg-white">Manage billing <ArrowRight className="h-3.5 w-3.5"/></Link>
+  </div>
+ </div>;
 }

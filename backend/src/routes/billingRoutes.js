@@ -23,5 +23,7 @@ const billingController = require('../controllers/billingController');
 const rateLimit = require('../middleware/authRateLimit');
 router.post('/portal', rateLimit(10, 60000, 'billing-portal'), billingController.createPortal);
 router.post('/renew', rateLimit(10, 60000, 'billing-renew'), billingController.renewSubscription);
+router.get('/status', billingController.getBillingStatus);
+router.get('/invoices/:id/document', billingController.getInvoiceDocument);
 
 module.exports = router;

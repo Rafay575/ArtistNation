@@ -33,6 +33,23 @@ exports.getInvoiceHistory=handle(async(req,res)=>{
  const [invoices]=await pool.query(`SELECT ih.* FROM invoice_history ih JOIN subscriptions s ON s.id=ih.subscription_id JOIN businesses b ON b.id=s.business_id WHERE b.user_id=? ORDER BY ih.created_at DESC LIMIT 100`,[req.user.id]);
  res.json({success:true,invoices:invoices.map(invoice=>({...invoice,amount:Number(invoice.amount)}))});
 });
+exports.getBillingStatus=handle(async(req,res)=>{
+ const [rows]=await pool.query(`SELECT MAX(s.expires_at) AS expires_at FROM subscriptions s JOIN businesses b ON b.id=s.business_id WHERE b.user_id=?`,[req.user.id]);
+ const [latest]=await pool.query(`SELECT s.status,s.stripe_status,s.cancel_at_period_end FROM subscriptions s JOIN businesses b ON b.id=s.business_id WHERE b.user_id=? ORDER BY s.id DESC LIMIT 1`,[req.user.id]);
+ if(!latest[0]) return res.status(404).json({error:'No subscription found'});
+ const state=require('../utils/billingDates').lifecycle(rows[0].expires_at);
+ res.json({...state,...latest[0]});
+});
+exports.getInvoiceDocument=handle(async(req,res)=>{
+ if(!/^\d+$/.test(req.params.id)) return res.sendStatus(400);
+ const [rows]=await pool.query(`SELECT ih.stripe_invoice_id,s.stripe_customer_id FROM invoice_history ih JOIN subscriptions s ON s.id=ih.subscription_id JOIN businesses b ON b.id=s.business_id WHERE ih.id=? AND b.user_id=?`,[req.params.id,req.user.id]);
+ if(!rows[0]) return res.sendStatus(404);
+ const invoice=await stripe.invoices.retrieve(rows[0].stripe_invoice_id);
+ if(idOf(invoice.customer)!==rows[0].stripe_customer_id) return res.sendStatus(403);
+ const url=invoice.invoice_pdf||invoice.hosted_invoice_url;
+ if(!url) return res.json({available:false,message:'Stripe has not generated a document for this invoice yet.'});
+ res.json({available:true,url,type:invoice.invoice_pdf?'pdf':'invoice'});
+});
 async function changeCancellation(req,res,cancel) {
  const id=await businessFor(req.user.id);
  const result=await withBusinessLock(id,async(connection,business)=>{
