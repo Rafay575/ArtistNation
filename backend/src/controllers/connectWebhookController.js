@@ -1,6 +1,7 @@
 const stripe = require('../config/stripe');
 const pool = require('../config/db');
 const { fulfill } = require('../utils/storeCheckout');
+const { connectStatus } = require('../utils/connectStatus');
 exports.handleConnectWebhook = async (req, res) => {
  let event;
  try {
@@ -16,7 +17,7 @@ exports.handleConnectWebhook = async (req, res) => {
   } else if (event.type === 'account.updated') {
    // Retrieve current state so out-of-order delivery cannot restore stale readiness.
    const account = await stripe.accounts.retrieve(event.account);
-   const status = account.type === 'standard' && account.charges_enabled && account.payouts_enabled ? 'active' : 'restricted';
+   const status = connectStatus(account).databaseStatus;
    await pool.query('UPDATE businesses SET stripe_account_status = ? WHERE stripe_account_id = ?', [status, event.account]);
   } else if (event.type === 'account.application.deauthorized') {
    await pool.query("UPDATE businesses SET stripe_account_status = 'restricted' WHERE stripe_account_id = ?", [event.account]);

@@ -21,6 +21,8 @@ export default function StripeIntegrationPage() {
     refetch: refetchStatus,
   } = useQuery({
     queryKey: ["stripeConnectStatus"],
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const res = await axios.get("/api/admin/stripe/connect/status");
       return res.data; // { connected, status, accountId }
@@ -43,13 +45,17 @@ export default function StripeIntegrationPage() {
 
   const connected = statusData?.connected ?? false;
   const accountId = statusData?.accountId ?? "";
-  const connectionStatusText = statusLoading
-    ? "Loading..."
-    : connected
-    ? "Connected to Stripe"
-    : statusData?.status === "pending"
-    ? "Onboarding pending"
-    : "Not connected";
+  const status = statusData?.status;
+  const presentation: Record<string, { title: string; description: string }> = {
+    active: { title: 'Connected to Stripe', description: 'Your account is ready to accept store payments.' },
+    pending: { title: 'Onboarding incomplete', description: 'Continue setup for your existing Stripe account.' },
+    under_review: { title: 'Under review by Stripe', description: 'Stripe is reviewing your submitted information. You do not need to create another account.' },
+    restricted: { title: 'Stripe account restricted', description: 'Payments or payouts are unavailable. Open Stripe to review and resolve outstanding requirements.' },
+    migration_required: { title: 'Connection needs migration', description: 'Your existing connection needs migration to Standard. Contact support.' },
+  };
+  const display = status ? presentation[status] : null;
+  const connectionStatusText = statusLoading ? 'Checking Stripe status...' : display?.title || 'Not connected';
+  const showDashboard = !!accountId && statusData?.action !== 'onboard' && status !== 'migration_required';
 
   // In case of error fetching status, show a warning and retry button
   if (statusError) {
@@ -83,9 +89,11 @@ export default function StripeIntegrationPage() {
           </div>
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium text-gray-500">
             <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-500" : "bg-amber-500"}`} />
-            {connected ? "Ready for payments" : "Setup required"}
+            {connectionStatusText}
           </div>
         </motion.div>
+
+        <Button variant="outline" onClick={() => refetchStatus()} disabled={statusLoading}>Refresh status</Button>
 
         {/* Connection card */}
         <motion.div
@@ -109,22 +117,24 @@ export default function StripeIntegrationPage() {
                 {connected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                 {statusLoading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
               </div>
-              {connected ? (
-                <p className="text-xs text-gray-500 mt-0.5">Account ID: {accountId}</p>
-              ) : (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {statusData?.status === "migration_required"
-                    ? "Your existing connection needs migration to Standard. Contact support."
-                    : statusData?.status === "pending"
-                    ? "Complete your onboarding to start receiving payments."
-                    : "Connect an account so this client can start receiving payouts."}
+              <p className="text-xs text-gray-500 mt-0.5">
+                {statusLoading ? 'Retrieving your account status.' : display?.description || 'Set up Stripe to receive payments from your artist site.'}
+              </p>
+              {accountId && <p className="text-xs text-gray-500 mt-1">Account ID: {accountId}</p>}
+              {accountId && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Payments: {statusData?.chargesEnabled ? 'Enabled' : 'Unavailable'} · Payouts: {statusData?.payoutsEnabled ? 'Enabled' : 'Unavailable'}
                 </p>
               )}
+              {!!statusData?.requirements?.length && (
+                <p className="text-xs text-amber-700 mt-2">Outstanding information: {statusData.requirements.map((field: string) => field.replace(/[._]/g, ' ')).join(', ')}</p>
+              )}
+
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {connected ? (
+            {showDashboard ? (
               <>
                 <a
                   href="https://dashboard.stripe.com/"
@@ -133,14 +143,14 @@ export default function StripeIntegrationPage() {
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  View in Stripe
+                  {status === "restricted" ? "Resolve in Stripe" : "Open Stripe Dashboard"}
                 </a>
 
               </>
             ) : (
               <Button
                 onClick={() => connectMutation.mutate()}
-                disabled={connectMutation.isPending || statusData?.status === "migration_required"}
+                disabled={statusLoading || connectMutation.isPending || status === "migration_required"}
                 className="bg-[#635BFF] hover:bg-[#544ce0] text-white"
               >
                 {connectMutation.isPending ? (
@@ -149,7 +159,7 @@ export default function StripeIntegrationPage() {
                     Redirecting...
                   </>
                 ) : (
-                  "Set up Standard Stripe"
+                  status === "migration_required" ? "Contact support" : accountId ? "Continue Stripe setup" : "Set up Standard Stripe"
                 )}
               </Button>
             )}

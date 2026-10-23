@@ -5,6 +5,7 @@ const { createHash } = require('crypto');
 const { getBusinessByUserId, updateStripeAccount, findBusinessBySubdomain } = require('../models/business');
 const { siteUrl } = require('../utils/onboardingValidation');
 const { priceCart, fulfill } = require('../utils/storeCheckout');
+const { connectStatus } = require('../utils/connectStatus');
 const schema = Joi.object({
  requestId: Joi.string().guid({version:'uuidv4'}).required(),
  items: Joi.array().min(1).max(50).items(Joi.object({id:Joi.string().max(100).required(),title:Joi.string().max(200).required(),image:Joi.string().max(2000).required(),quantity:Joi.number().integer().min(1).max(99).required()})).required(),
@@ -87,10 +88,10 @@ exports.getConnectStatus=async(req,res,next)=>{
   if(!business?.stripe_account_id) return res.json({connected:false,status:null});
   let account;
   try{account=await stripe.accounts.retrieve(business.stripe_account_id);}catch(e){if(missing(e)) return res.json({connected:false,status:'migration_required'});throw e;}
-  const connected=ready(account);
-  const status=connected?'active':account.requirements?.disabled_reason?'restricted':'pending';
-  await updateStripeAccount(business.id,account.id,status);
-  res.json({connected,status:account.type==='standard'?status:'migration_required',accountId:account.id,chargesEnabled:account.charges_enabled,payoutsEnabled:account.payouts_enabled,requirements:account.requirements?.currently_due||[]});
+  const state = connectStatus(account);
+  await updateStripeAccount(business.id,account.id,state.databaseStatus);
+  const { databaseStatus, ...response } = state;
+  res.json(response);
  }catch(e){next(e);}
 };
 exports.getPublicStripeStatus=async(req,res,next)=>{

@@ -7,11 +7,25 @@ function load(file, mocks) {
  const module = { exports: {} };
  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), { module, exports: module.exports, require: id => {
   if (id in mocks) return mocks[id];
+  if (id === '../utils/connectStatus') return require('../src/utils/connectStatus');
   return require(id);
  }, console, URL, Date });
  return module.exports;
 }
 const product = {title:'Album',price:12.99,image:'/album.png'};
+test('review, missing details, restrictions and enabled accounts have distinct states', () => {
+ const { connectStatus } = require('../src/utils/connectStatus');
+ const account = {id:'acct_test',type:'standard',charges_enabled:false,payouts_enabled:false,details_submitted:true};
+ const review = connectStatus({...account,requirements:{disabled_reason:'requirements.pending_verification',pending_verification:['individual.id_number']}});
+ assert.equal(review.status,'under_review');
+ assert.equal(review.databaseStatus,'pending');
+ assert.equal(review.action,'dashboard');
+ const restricted = connectStatus({...account,requirements:{disabled_reason:'requirements.past_due',past_due:['individual.id_number']}});
+ assert.equal(restricted.status,'restricted');assert.equal(restricted.action,'dashboard');
+ assert.equal(connectStatus({...account,details_submitted:false,requirements:{currently_due:['individual.id_number']}}).action,'onboard');
+ assert.equal(connectStatus({...account,charges_enabled:true,payouts_enabled:true}).status,'active');
+ assert.equal(connectStatus({...account,charges_enabled:true}).connected,false);
+});
 const requested = {id:'4:0',quantity:2,title:'Album',image:'/album.png',price:0.01};
 const catalog = [{id:4,content:JSON.stringify({products:[product]})}];
 test('prices come from the artist catalog rather than browser prices',()=>{
