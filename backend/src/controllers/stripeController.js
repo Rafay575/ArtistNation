@@ -6,6 +6,7 @@ const { getBusinessByUserId, updateStripeAccount, findBusinessBySubdomain } = re
 const { siteUrl } = require('../utils/onboardingValidation');
 const { priceCart, fulfill } = require('../utils/storeCheckout');
 const { connectStatus } = require('../utils/connectStatus');
+const { hasSubscription } = require('../middleware/artistAccess');
 const schema = Joi.object({
  requestId: Joi.string().guid({version:'uuidv4'}).required(),
  items: Joi.array().min(1).max(50).items(Joi.object({id:Joi.string().max(100).required(),title:Joi.string().max(200).required(),image:Joi.string().max(2000).required(),quantity:Joi.number().integer().min(1).max(99).required()})).required(),
@@ -20,6 +21,7 @@ exports.createPaymentIntent = async (req,res,next) => {
   const {requestId,items:requested,fanInfo} = result.value;
   const business = await findBusinessBySubdomain(req.params.subdomain);
   if(!business?.is_active || business.user_id !== req.fan.artist_id || !business.stripe_account_id) return res.status(403).json({error:'Artist payments unavailable'});
+  if (!(await hasSubscription(business.user_id))) return res.status(403).json({error:'Artist subscription has expired'});
   const account = await stripe.accounts.retrieve(business.stripe_account_id);
   if(!ready(account)) return res.status(409).json({error:'Artist must complete Standard Stripe onboarding'});
   const hash = createHash('sha256').update(JSON.stringify(result.value)).digest('hex');
@@ -99,6 +101,7 @@ exports.getPublicStripeStatus=async(req,res,next)=>{
   const business=await findBusinessBySubdomain(req.params.subdomain);
   if(!business) return res.sendStatus(404);
   if(!business.is_active||!business.stripe_account_id) return res.json({connected:false});
+  if (!(await hasSubscription(business.user_id))) return res.json({connected:false});
   try{res.json({connected:ready(await stripe.accounts.retrieve(business.stripe_account_id))});}catch(e){if(missing(e)) return res.json({connected:false});throw e;}
  }catch(e){next(e);}
 };

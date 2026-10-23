@@ -8,12 +8,14 @@ async function createSubscription(
     billingCycle,
     stripeSubscriptionId,
     stripeCustomerId,
+    stripeSubscription,
   }
 ) {
-  const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  if (!Number.isFinite(stripeSubscription?.trial_end)) throw new Error('Stripe trial end is missing');
+  const trialEnd = new Date(stripeSubscription.trial_end * 1000);
   const [result] = await connection.execute(
     `INSERT INTO subscriptions (business_id, plan, billing_cycle, status, stripe_customer_id, stripe_subscription_id, started_at, expires_at)
-     VALUES (?, ?, ?, 'active', ?, ?, NOW(), ?)`,
+     VALUES (?, ?, ?, 'trialing', ?, ?, NOW(), ?)`,
     [businessId, plan, billingCycle, stripeCustomerId, stripeSubscriptionId, trialEnd]
   );
   return result.insertId;

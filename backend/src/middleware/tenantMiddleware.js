@@ -1,4 +1,5 @@
-const { findActiveBusinessBySubdomain } = require('../models/business');
+const { findBusinessBySubdomain } = require('../models/business');
+const { accessState } = require('../utils/billingLifecycle');
 
 const tenantMiddleware = async (req, res, next) => {
     // Skip OPTIONS preflight requests
@@ -33,7 +34,7 @@ const tenantMiddleware = async (req, res, next) => {
     // 4. If we have a valid client subdomain, check if it's active in the database
     if (subdomain) {
         try {
-            const business = await findActiveBusinessBySubdomain(subdomain);
+            const business = await findBusinessBySubdomain(subdomain);
             if (!business) {
                 return res.status(404).json({
                     error: 'TENANT_NOT_FOUND_OR_INACTIVE',
@@ -41,6 +42,8 @@ const tenantMiddleware = async (req, res, next) => {
                     subdomain,
                 });
             }
+            const billing = await accessState(business.id);
+            if (billing.state !== 'active') return res.status(402).json({ error: 'SUBSCRIPTION_EXPIRED', state: billing.state });
             // Attach the business/tenant data to the request object
             req.tenant = business;
         } catch (err) {

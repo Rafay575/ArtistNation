@@ -24,6 +24,7 @@ interface BillingOverview {
       subdomain: string;
       is_active: boolean;
       grace_period_end: string | null;
+      lifecycle: 'active' | 'grace' | 'expired' | 'unavailable';
     };
     subscription: {
       id: number;
@@ -37,6 +38,7 @@ interface BillingOverview {
       is_active: boolean;
       is_pending_cancel: boolean;
       is_inactive: boolean;
+      can_renew: boolean;
     };
   };
 }
@@ -117,6 +119,19 @@ export default function BillingsPage() {
   // ============================================================
 
   const [loading, setLoading] = useState(true);
+  const [openingBilling, setOpeningBilling] = useState(false);
+  const openStripeBilling = async (renew: boolean) => {
+    if (openingBilling) return;
+    setOpeningBilling(true);
+    try {
+      const { data } = await api.post(renew ? '/api/billing/renew' : '/api/billing/portal');
+      const url = new URL(data.url);
+      if (url.protocol !== 'https:' || !['billing.stripe.com', 'checkout.stripe.com'].includes(url.hostname)) throw new Error('Invalid billing redirect');
+      window.location.assign(url.href);
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Unable to open billing. Please retry.');
+    } finally { setOpeningBilling(false); }
+  };
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [overview, setOverview] = useState<BillingOverview['data'] | null>(null);
@@ -351,9 +366,17 @@ export default function BillingsPage() {
         >
           <h1 className="text-xl font-semibold text-slate-800">Billings</h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Track invoices, payments, and revenue
+            Manage your ArtistNation subscription, payment details, and invoices
           </p>
         </motion.div>
+
+        {overview && overview.business.lifecycle !== 'active' && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900" role="status">
+            <p className="font-semibold">Your website is paused</p>
+            <p className="mt-1 text-sm">Renew your subscription to restore access. Website data is removed 30 days after your paid-through date, and your email and subdomain are then released.</p>
+            <p className="mt-1 text-sm">Renewal deadline: {formatDate(overview.business.grace_period_end)}.</p>
+          </div>
+        )}
 
         {/* Subscription Overview Card */}
         {overview && (
@@ -385,7 +408,13 @@ export default function BillingsPage() {
                 <p className="text-lg font-semibold text-gray-900">
                   {formatDate(overview.subscription.expires_at)}
                 </p>
-                <div className="flex gap-2 mt-2 justify-end">
+                <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                  <button onClick={() => openStripeBilling(false)} disabled={openingBilling} className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50">
+                    {openingBilling ? 'Opening Stripe...' : 'Manage payment details / Pay invoices'}
+                  </button>
+                  {overview.subscription.can_renew && (
+                    <button onClick={() => openStripeBilling(true)} disabled={openingBilling} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm disabled:opacity-50">Renew subscription</button>
+                  )}
                   {overview.subscription.is_pending_cancel && (
                     <button
                       onClick={openReactivateModal}

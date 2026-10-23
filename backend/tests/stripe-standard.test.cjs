@@ -8,6 +8,7 @@ function load(file, mocks) {
  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), { module, exports: module.exports, require: id => {
   if (id in mocks) return mocks[id];
   if (id === '../utils/connectStatus') return require('../src/utils/connectStatus');
+  if (id === '../middleware/artistAccess') return { hasSubscription: async () => true };
   return require(id);
  }, console, URL, Date });
  return module.exports;

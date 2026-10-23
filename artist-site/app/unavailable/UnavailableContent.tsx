@@ -1,64 +1,20 @@
-// app/unavailable/UnavailableContent.tsx
 "use client";
-
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-
 export default function UnavailableContent() {
-  const searchParams = useSearchParams();
-  const subdomain = searchParams.get('subdomain') || 'this site';
-  const [countdown, setCountdown] = useState(5);
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      window.location.href = 'https://test.artistnation.studio';
-    }
-  }, [countdown]);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center">
-        {/* Icon */}
-        <div className="mb-6">
-          <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">🚧 Site Unavailable</h1>
-
-        <p className="text-gray-600 mb-6">
-          The site <strong className="text-gray-900">{subdomain}.artistnation.studio</strong> is currently unavailable.
-        </p>
-
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
-          <p className="text-sm text-gray-700">⚠️ This site is currently inactive. This could be because:</p>
-          <ul className="text-sm text-gray-600 mt-2 list-disc list-inside space-y-1">
-            <li>The subscription has been canceled</li>
-            <li>The trial period has ended</li>
-            <li>Payment is overdue</li>
-          </ul>
-          <p className="text-sm text-gray-600 mt-2">Please contact the site owner to reactivate.</p>
-        </div>
-
-        <div className="space-y-3">
-          <Link
-            href="https://test.artistnation.studio"
-            className="block w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
-          >
-            Go to ArtistNation
-          </Link>
-          <p className="text-sm text-gray-400">
-            Redirecting in <span className="font-bold text-gray-600">{countdown}</span> seconds...
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+ const params=useSearchParams();
+ const grace=params.get('state')==='grace';
+ const deadline=params.get('deadline');
+ const end=deadline?new Date(deadline):null;
+ const admin=(process.env.NEXT_PUBLIC_ADMIN_URL||'https://test.artistnation.studio').replace(/\/$/,'');
+ return <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+  <section className="max-w-lg w-full rounded-2xl bg-white p-10 text-center shadow-xl">
+   <h1 className="text-2xl font-semibold text-slate-900">{grace?'Website temporarily paused':'Website unavailable'}</h1>
+   <p className="mt-4 text-slate-600">{grace?'This website is paused because its subscription has expired. The owner can renew to bring it back online.':'This website is not currently available.'}</p>
+   {grace&&<div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+    Account owners have 30 days from expiry to renew. After that, website data is removed and the email and subdomain are released.
+    {end&&!Number.isNaN(end.getTime())&&<p className="mt-2 font-medium">Renew before {end.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'})} (UTC).</p>}
+   </div>}
+   <a href={admin+'/admin/billings'} className="mt-6 block rounded-lg bg-purple-700 px-5 py-3 text-white">Owner sign in and renew</a>
+  </section>
+ </main>;
 }

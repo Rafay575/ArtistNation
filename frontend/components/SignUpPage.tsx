@@ -400,24 +400,24 @@ const dispatch = useDispatch();
         paymentMethodId: paymentMethod.id, // 👈 important
       };
 
-      await signupMutation.mutateAsync(payload, {
-        onSuccess: (data) => {
-          if (accountGenerationRef.current !== accountGeneration) return;
-          setUserId(data.userId);
-          draftDisabledRef.current = true;
-          setVerificationEmail(data.email);
-          try { clearSignupDraft(localStorage); } catch { /* Storage is optional. */ }
-          setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
-          goToStep(3);
-        },
-        onError: (error: any) => {
-          const msg =
-            error.response?.data?.error ||
-            error.message ||
-            "Signup failed. Please try again.";
-          setErrorMessage(msg);
-        },
-      });
+      let data;
+      try {
+        data = await signupMutation.mutateAsync(payload);
+      } catch (paymentError: any) {
+        if (paymentError.response?.data?.code !== 'PAYMENT_AUTHENTICATION_REQUIRED') throw paymentError;
+        const result = await stripe.confirmCardPayment(paymentError.response.data.clientSecret);
+        if (result.error) throw new Error(result.error.message || 'Card authentication failed');
+        if (result.paymentIntent?.status !== 'succeeded') throw new Error('Payment is not confirmed. Please retry.');
+        if (accountGenerationRef.current !== accountGeneration) return;
+        data = await signupMutation.mutateAsync(payload);
+      }
+      if (accountGenerationRef.current !== accountGeneration) return;
+      setUserId(data.userId);
+      draftDisabledRef.current = true;
+      setVerificationEmail(data.email);
+      try { clearSignupDraft(localStorage); } catch { /* Storage is optional. */ }
+      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      goToStep(3);
       } catch (error: any) {
         setErrorMessage(error.response?.data?.error || error.message || 'Signup failed. Please try again.');
       } finally {

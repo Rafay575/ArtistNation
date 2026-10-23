@@ -19,5 +19,9 @@ router.get('/overview', getBillingOverview);
 router.get('/invoices', getInvoiceHistory);
 router.post('/cancel', cancelSubscription);
 router.post('/reactivate', reactivateSubscription);
+const billingController = require('../controllers/billingController');
+const rateLimit = require('../middleware/authRateLimit');
+router.post('/portal', rateLimit(10, 60000, 'billing-portal'), billingController.createPortal);
+router.post('/renew', rateLimit(10, 60000, 'billing-renew'), billingController.renewSubscription);
 
 module.exports = router;

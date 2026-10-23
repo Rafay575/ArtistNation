@@ -21,6 +21,17 @@ app.use(helmet());
 app.use(cors());
 
 app.use('/api/webhooks', require('./routes/webhookRoutes'));
+// Public lifecycle metadata contains no account identity or site content.
+app.get('/api/site-status/:subdomain', async (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(req.params.subdomain)) return res.sendStatus(404);
+    const business = await require('./models/business').findBusinessBySubdomain(req.params.subdomain);
+    if (!business) return res.status(404).json({ state: 'unavailable' });
+    const state = await require('./utils/billingLifecycle').accessState(business.id);
+    res.json({ state: state.state, graceEnd: state.graceEnd || null });
+  } catch (error) { next(error); }
+});
 
 app.get("/testing", (req, res) => {
   res.json({ message: "API is working!" });

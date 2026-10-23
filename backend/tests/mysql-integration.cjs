@@ -22,7 +22,7 @@ async function main(){
   const connection=await pool.getConnection();
   const {userId,otp}=await model.createUser(connection,{fullName:'QA Artist',email:'qa@example.com',phone:'5551234567',password:'TestPassword123',stripeCustomerId:'cus_qa',stripePaymentIntentId:'sub_qa',plan:'starter',billingCycle:'monthly',billingAddress:'123 Test Street'});
   const businessId=await createBusiness(connection,{userId,businessName:'QA Music',subdomain:'qa-artist',billingAddress:'123 Test Street'});
-  await createSubscription(connection,{businessId,plan:'starter',billingCycle:'monthly',stripeSubscriptionId:'sub_qa',stripeCustomerId:'cus_qa'});
+  await createSubscription(connection,{businessId,plan:'starter',billingCycle:'monthly',stripeSubscriptionId:'sub_qa',stripeCustomerId:'cus_qa',stripeSubscription:{trial_end:Math.floor(Date.now()/1000)+14*86400}});
   connection.release();
   assert.equal(await model.verifyOTP(userId,'000000'),false);
   assert.equal((await model.findUserById(userId)).is_verified,0);

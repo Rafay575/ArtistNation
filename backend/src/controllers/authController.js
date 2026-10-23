@@ -3,7 +3,7 @@ const { issueUserToken } = require('../utils/userSessions');
 const { signupSchema, validateProfile, siteUrl } = require('../utils/onboardingValidation');
 // src/controllers/authController.js
 const bcrypt = require("bcrypt");
-const { randomBytes } = require("crypto");
+const { randomBytes, createHmac } = require("crypto");
 const dummyPasswordHash = bcrypt.hash(randomBytes(32).toString("hex"), 10);
 const jwt = require("jsonwebtoken");
 const stripe = require("../config/stripe");
@@ -218,8 +218,12 @@ async function signup(req, res, next) {
   let stripeSubscription = null;
   let setupFeePaymentIntent;
   let paymentSucceeded = false; // indicates setup fee paid and subscription created
+  // Bind retry keys to the complete signup identity, including its password,
+  // without transmitting credentials in Stripe metadata or idempotency keys.
+  let signupKey;
 
   try {
+    signupKey = createHmac('sha256', process.env.JWT_SECRET).update(JSON.stringify({ fullName,email,phone,password,businessName,subdomain,billingAddress,plan,billingCycle,paymentMethodId })).digest('hex');
     await connection.beginTransaction();
 
     // ---------- Duplicate checks (inside transaction, with locks) ----------
@@ -251,13 +255,15 @@ async function signup(req, res, next) {
       const priceId = process.env[`STRIPE_${plan.toUpperCase()}_${billingCycle.toUpperCase()}_PRICE_ID`]
         || (plan === "starter" ? process.env[billingCycle === "yearly" ? "STRIPE_YEARLY_PRICE_ID" : "STRIPE_MONTHLY_PRICE_ID"] : null);
       if (!priceId) throw new Error("Selected plan is not configured");
+      const price = await stripe.prices.retrieve(priceId);
+      if (!price.active || !price.recurring || price.recurring.interval !== (billingCycle === 'yearly' ? 'year' : 'month') || price.recurring.interval_count !== 1) throw new Error('Invalid subscription price configuration');
 
       customer = await stripe.customers.create({
         email,
         name: fullName,
         payment_method: paymentMethodId,
         invoice_settings: { default_payment_method: paymentMethodId },
-      }, { idempotencyKey: `signup-customer-${paymentMethodId}` });
+      }, { idempotencyKey: `signup-customer-${signupKey}` });
 
       // One-time setup fee
       setupFeePaymentIntent = await stripe.paymentIntents.create({
@@ -271,8 +277,15 @@ async function signup(req, res, next) {
     enabled: true,
     allow_redirects: 'never',
   },
-  description: "One-time setup fee for PTW subscription",
-}, { idempotencyKey: `signup-setup-${paymentMethodId}` });
+  description: "One-time setup fee for ArtistNation subscription",
+}, { idempotencyKey: `signup-setup-${signupKey}` });
+
+      // Idempotent create responses can contain the pre-authentication state.
+      setupFeePaymentIntent = await stripe.paymentIntents.retrieve(setupFeePaymentIntent.id);
+      if (setupFeePaymentIntent.status === 'requires_action') {
+        await connection.rollback();
+        return res.status(402).json({ error: 'Please authenticate your card.', code: 'PAYMENT_AUTHENTICATION_REQUIRED', clientSecret: setupFeePaymentIntent.client_secret });
+      }
 
       if (setupFeePaymentIntent.status !== "succeeded") {
         throw new Error(`Setup fee payment status: ${setupFeePaymentIntent.status}`);
@@ -284,8 +297,8 @@ async function signup(req, res, next) {
         trial_period_days: 14,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-      }, { idempotencyKey: `signup-subscription-${paymentMethodId}` });
+        metadata: { artistnation_signup: '1' },
+      }, { idempotencyKey: `signup-subscription-${signupKey}` });
 
       stripeSubscription = subscription;
       paymentSucceeded = true;
@@ -298,10 +311,11 @@ async function signup(req, res, next) {
       }
       await connection.rollback();
       console.error("Stripe error:", paymentErr.message);
-      await sendPaymentFailureEmail(email, fullName, paymentErr.message).catch(
-        (err) => console.error("Email error:", err.message)
-      );
-      return res.status(402).json({ error: "Payment failed. Please check your card details." });
+      if (paymentErr.type === 'StripeCardError') {
+        await sendPaymentFailureEmail(email, fullName, paymentErr.message).catch(err => console.error('Email error:', err.message));
+        return res.status(402).json({ error: 'Payment failed. Please check your card details.' });
+      }
+      return res.status(503).json({ error: 'Subscription billing is temporarily unavailable. Please retry or contact support.' });
     }
 
     // ---------- Database operations (using same connection) ----------
@@ -323,6 +337,7 @@ async function signup(req, res, next) {
         billingCycle,
         stripeSubscriptionId: subscription.id,
         stripeCustomerId: customer.id,
+        stripeSubscription: subscription,
       });
 
       await connection.commit();
@@ -330,7 +345,7 @@ async function signup(req, res, next) {
       // Post-commit emails
       try {
         await sendPaymentSuccessEmail(
-          email, fullName, new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+          email, fullName, new Date(subscription.trial_end * 1000)
         );
       } catch (emailErr) {
         console.error("Failed to send payment success email:", emailErr.message);
