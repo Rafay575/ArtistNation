@@ -110,3 +110,21 @@ test('archive contains only account and billing data and releases identifiers la
  assert.ok(statements.findIndex(s=>s===insert)<statements.findIndex(s=>s.sql.startsWith('DELETE')));
  assert.equal(statements.at(-1).sql,'DELETE FROM users WHERE id=? AND is_admin=0');
 });
+test('invoice documents are restricted to the authenticated invoice owner',async()=>{
+ let customer='cus_owner', owned=true, requests=0;
+ const controller=load('controllers/billingController.js',{
+  '../config/db':{query:async(sql,args)=>{assert.ok(sql.includes('b.user_id=?'));assert.equal(args[1],7);return [owned?[{stripe_invoice_id:'in_owned',stripe_customer_id:'cus_owner'}]:[]]}},
+  '../config/stripe':{invoices:{retrieve:async()=>{requests++;return {customer,invoice_pdf:'https://pay.stripe.com/invoice/pdf'}}}},
+  '../utils/billingLifecycle':{},'../utils/billingDates':dates,crypto:require('crypto')
+ });
+ const response=()=>({statusCode:200,status(n){this.statusCode=n;return this},sendStatus(n){this.statusCode=n;return this},json(data){this.body=data;return this}});
+ let res=response();
+ await controller.getInvoiceDocument({params:{id:'10'},user:{id:7}},res);
+ assert.equal(res.body.type,'pdf');assert.equal(res.body.available,true);
+ customer='cus_other';res=response();
+ await controller.getInvoiceDocument({params:{id:'10'},user:{id:7}},res);
+ assert.equal(res.statusCode,403);
+ owned=false;res=response();
+ await controller.getInvoiceDocument({params:{id:'11'},user:{id:7}},res);
+ assert.equal(res.statusCode,404);assert.equal(requests,2);
+});
