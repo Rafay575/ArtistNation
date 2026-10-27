@@ -9,6 +9,7 @@ function load(file, mocks) {
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src',file),'utf8'),{module,exports:module.exports,require:id=>{
   if(id in mocks) return mocks[id];
   if(id==='./billingDates') return dates;
+  if(id==='./billingClock') return { billingNow: async () => Date.now() };
   throw new Error('Unmocked dependency: '+id);
  },Date,console});
  return module.exports;
@@ -20,6 +21,29 @@ test('paid-through and thirty-day grace boundaries are exact',()=>{
  assert.equal(dates.lifecycle(new Date(end),end+30*dates.DAY-1).state,'grace');
  assert.equal(dates.lifecycle(new Date(end),end+30*dates.DAY).state,'expired');
  assert.equal(dates.lifecycle(null,end).state,'unavailable');
+});
+test('clock time is sandbox-only and normal accounts keep real time',async()=>{
+ const previousFlag=process.env.STRIPE_TEST_CLOCK_ENABLED;
+ const previousKey=process.env.STRIPE_SECRET_KEY;
+ let customer={livemode:false,test_clock:'clock_test'};
+ let clock={status:'ready',frozen_time:1900000000};
+ const module={exports:{}};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/utils/billingClock.js'),'utf8'),{module,exports:module.exports,process,Date,require:id=>id==='../config/stripe'?{customers:{retrieve:async()=>customer},testHelpers:{testClocks:{retrieve:async()=>clock}}}:dates});
+ const {billingNow}=module.exports;
+ try {
+  process.env.STRIPE_TEST_CLOCK_ENABLED='false';
+  assert.ok(Math.abs(await billingNow('cus_test')-Date.now())<1000);
+  process.env.STRIPE_TEST_CLOCK_ENABLED='true';process.env.STRIPE_SECRET_KEY='sk_test_fixture';
+  assert.equal(await billingNow('cus_test'),1900000000000);
+  clock.status='advancing';await assert.rejects(billingNow('cus_test'));
+  clock.status='ready';customer={livemode:false,test_clock:null};
+  assert.ok(Math.abs(await billingNow('cus_test')-Date.now())<1000);
+  customer={livemode:true,test_clock:'clock_test'};await assert.rejects(billingNow('cus_test'));
+  process.env.STRIPE_SECRET_KEY='sk_live_fixture';await assert.rejects(billingNow('cus_test'));
+ } finally {
+  if(previousFlag===undefined)delete process.env.STRIPE_TEST_CLOCK_ENABLED;else process.env.STRIPE_TEST_CLOCK_ENABLED=previousFlag;
+  if(previousKey===undefined)delete process.env.STRIPE_SECRET_KEY;else process.env.STRIPE_SECRET_KEY=previousKey;
+ }
 });
 test('only paid recurring invoice lines grant entitlement, including zero-dollar paid renewals',()=>{
  const invoice={status:'paid',parent:{subscription_details:{subscription:'sub_1'}},lines:{data:[{parent:{subscription_item_details:{subscription:'sub_1',proration:false}},period:{end:1000}}]}};

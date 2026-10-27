@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const stripe = require('../config/stripe');
 const { idOf, paidInvoiceEnd, lifecycle } = require('./billingDates');
+const { billingNow } = require('./billingClock');
 
 async function withBusinessLock(businessId, work) {
  const connection = await pool.getConnection();
@@ -56,6 +57,9 @@ async function syncBusiness(connection, business) {
  const [locals] = await connection.query('SELECT * FROM subscriptions WHERE business_id=? ORDER BY id DESC', [business.id]);
  if (!locals.length) throw new Error('Subscription configuration missing; automatic removal is blocked');
  const synced = [];
+ const customerId = locals[0].stripe_customer_id;
+ if (locals.some(local => local.stripe_customer_id !== customerId)) throw new Error('Mixed billing customers require migration');
+ const now = await billingNow(customerId);
  for (const local of locals) {
   const subscription = await stripe.subscriptions.retrieve(local.stripe_subscription_id);
   if (idOf(subscription.customer) !== local.stripe_customer_id) throw new Error('Subscription customer mismatch');
@@ -74,7 +78,7 @@ async function syncBusiness(connection, business) {
   // An active subscription without a confirmed paid line must not grant access.
   if (!end) throw new Error('No verified entitlement date; automatic removal is blocked');
   const expiresAt = new Date(end * 1000);
-  const future = expiresAt > new Date();
+  const future = expiresAt.getTime() > now;
   const status = future ? subscription.cancel_at_period_end || subscription.status === 'canceled' ? 'pending_cancel'
    : subscription.status === 'trialing' ? 'trialing' : 'active' : 'inactive';
   await connection.query('UPDATE subscriptions SET status=?, expires_at=?, stripe_status=?, cancel_at_period_end=?, last_synced_at=NOW() WHERE id=?',
@@ -82,16 +86,19 @@ async function syncBusiness(connection, business) {
   synced.push({ ...local, status, expires_at: expiresAt, stripe_status: subscription.status, cancel_at_period_end: !!subscription.cancel_at_period_end, remote: subscription });
  }
  const end = new Date(Math.max(...synced.map(sub => sub.expires_at.getTime())));
- const state = lifecycle(end);
+ const state = lifecycle(end, now);
  await connection.query('UPDATE businesses SET is_active=?, grace_period_end=? WHERE id=?', [state.state === 'active' && business.is_verified ? 1 : 0, state.state === 'active' ? null : state.graceEnd, business.id]);
- await connection.query('UPDATE users SET is_trial_expired = (trial_end_date <= NOW()) WHERE id=?', [business.user_id]);
- return { ...state, subscriptions: synced };
+ await connection.query('UPDATE users SET is_trial_expired = (trial_end_date <= ?) WHERE id=?', [new Date(now), business.user_id]);
+ return { ...state, evaluatedAt: new Date(now), subscriptions: synced };
 }
 
 async function accessState(businessId) {
  const [rows] = await pool.query(`SELECT b.is_active, MAX(s.expires_at) AS expires_at FROM businesses b LEFT JOIN subscriptions s ON s.business_id=b.id WHERE b.id=? GROUP BY b.id,b.is_active`, [businessId]);
  if (!rows.length) return { state: 'unavailable' };
- const state = lifecycle(rows[0].expires_at);
+ const [customers] = await pool.query('SELECT DISTINCT stripe_customer_id FROM subscriptions WHERE business_id=?', [businessId]);
+ if (customers.length !== 1) throw new Error('Billing customer configuration requires review');
+ const now = await billingNow(customers[0].stripe_customer_id);
+ const state = { ...lifecycle(rows[0].expires_at, now), evaluatedAt: new Date(now) };
  // Never bypass a manual business suspension.
  if (state.state === 'active' && !rows[0].is_active) return { ...state, state: 'unavailable' };
  return state;

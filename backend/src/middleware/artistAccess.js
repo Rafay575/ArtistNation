@@ -1,12 +1,9 @@
 const pool = require('../config/db');
 
 async function hasSubscription(userId) {
-  const [rows] = await pool.query(`SELECT b.is_active,
-    EXISTS(SELECT 1 FROM subscriptions s WHERE s.business_id = b.id
-      AND s.status IN ('active', 'trialing', 'pending_cancel') AND s.expires_at > NOW()) AS subscribed
-    FROM users u LEFT JOIN businesses b ON b.user_id = u.id WHERE u.id = ?`, [userId]);
-  const row = rows[0];
-  return !!row && !!row.is_active && !!row.subscribed;
+  const [rows] = await pool.query('SELECT id FROM businesses WHERE user_id=?', [userId]);
+  if (!rows[0]) return false;
+  return (await require('../utils/billingLifecycle').accessState(rows[0].id)).state === 'active';
 }
 
 async function artistAccess(req, res, next) {

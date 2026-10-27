@@ -37,7 +37,10 @@ exports.getBillingStatus=handle(async(req,res)=>{
  const [rows]=await pool.query(`SELECT MAX(s.expires_at) AS expires_at FROM subscriptions s JOIN businesses b ON b.id=s.business_id WHERE b.user_id=?`,[req.user.id]);
  const [latest]=await pool.query(`SELECT s.status,s.stripe_status,s.cancel_at_period_end FROM subscriptions s JOIN businesses b ON b.id=s.business_id WHERE b.user_id=? ORDER BY s.id DESC LIMIT 1`,[req.user.id]);
  if(!latest[0]) return res.status(404).json({error:'No subscription found'});
- const state=require('../utils/billingDates').lifecycle(rows[0].expires_at);
+ const [customers]=await pool.query('SELECT DISTINCT s.stripe_customer_id FROM subscriptions s JOIN businesses b ON b.id=s.business_id WHERE b.user_id=?',[req.user.id]);
+ if(customers.length!==1) throw new Error('Billing customer configuration requires review');
+ const now=await require('../utils/billingClock').billingNow(customers[0].stripe_customer_id);
+ const state={...require('../utils/billingDates').lifecycle(rows[0].expires_at,now),evaluatedAt:new Date(now)};
  res.json({...state,...latest[0]});
 });
 exports.getInvoiceDocument=handle(async(req,res)=>{
