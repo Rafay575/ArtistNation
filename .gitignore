@@ -76,3 +76,4 @@ Desktop.ini
 *.swo
 *~
 .idea/
+.gitignore
